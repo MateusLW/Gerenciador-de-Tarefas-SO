@@ -4,24 +4,30 @@
 
 #define OCUPADO 1
 #define LIVRE 0
+int quantum;
+char escal[5];
 
-/* -PARA ADICIONAR:                                     *
- *                                                      *
- *  Parâmetro de tempo de entrada da tarefa, junto com  *
- *  seu sistema para adicionar a tarefa na fila somente *
- *  chegar o tempo de sua entrada.                      *
- *                                                      *
- *  Relógio Global.                                     *
- *                                                      */
+/* -PARA ADICIONAR:                                                                               *
+ *                                                                                                *
+ *  Fazer o metodo de escalonamento PRIOP                                                         *
+ *  Resolver questão da localização do arquivo                                                    *
+ *  Interface de Visuzalização com sistema de cores por tarefa                                    *
+ *                                                                                                */
 
 typedef struct Tarefa {
     int id;
+    char* cor;
+    int tempo_ingresso;
     int tempo_execucao;
+    int prioridade;
+
 } Tarefa;
 
 typedef struct CPU {
+    int id;
     Tarefa* t;
     int ocupado;
+    int tempo_desligado;
 } CPU;
 
 typedef struct No_Tarefa {
@@ -46,8 +52,11 @@ typedef struct Fila_CPU {
 } Fila_CPU;
 
         /* FUNÇÕES DE EXECUÇÃO  */
+void ingresso_tarefa(int relogio, Fila_Tarefas *f);
 void SRTF(Fila_CPU *c, Fila_Tarefas *t);
 void execucao(Fila_CPU *f);
+
+void escalonamento_config(Fila_CPU* c);
 
         /*  FUNÇÕES DE FILAS    */
 void inserir(Fila_Tarefas *f, Tarefa* t);
@@ -57,30 +66,23 @@ void inicializar_fila_CPU(Fila_CPU *f, int size);
 int main() {
     Fila_Tarefas* f_tarefas = malloc(sizeof(Fila_Tarefas));
     inicializar_fila(f_tarefas);
-
-    // Tarefas teste
-    Tarefa t1 = {1, 6};
-    Tarefa t2 = {2, 3};
-    Tarefa t3 = {3, 1};
-
     Fila_CPU* f_cpu = malloc(sizeof(Fila_CPU));
 
-    // CPU teste
-    inicializar_fila_CPU(f_cpu, 1);
-
-    //Tarefas em fila de espera
-    inserir(f_tarefas, &t1);
-    inserir(f_tarefas, &t2);
-    inserir(f_tarefas, &t3);
-
+    // Traz configuracao do escalonamento
+    escalonamento_config(f_cpu);
     printf("Iniciando Escalonamento SRTF...\n");
 
     /*  ESCALONA ENQUANTO A FILA DE ESPERA NÃO ESTIVER VAZIA    */
     int processando = 1;
+    int relogio=0;
     while (processando) {
-
-        SRTF(f_cpu, f_tarefas); /*  -Escalonamento-  */
-        execucao(f_cpu);        /*    -Execução-     */
+        ingresso_tarefa(relogio, f_tarefas);    /*  -Entrada das tarefas na fila-  */
+        SRTF(f_cpu, f_tarefas);                 /*         -Escalonamento-         */
+        for (int i=0; i < quantum; i++) {
+            /*            -Execução-           */
+            execucao(f_cpu);
+            relogio++;
+        }
 
         //Checa se fila está vazia e se ainda tem algo sendo processado pela CPU
         processando = (f_tarefas->inicio != NULL);
@@ -89,7 +91,7 @@ int main() {
         }
     }
 
-    printf("Todas as tarefas concluidas.\n");
+    printf("Todas as tarefas concluidas em %d segundos. \n", relogio-1);
     return 0;
 }
 
@@ -130,7 +132,7 @@ void SRTF(Fila_CPU *c, Fila_Tarefas *t) {
             if (tarefa_saindo != NULL) {
                 inserir(t, tarefa_saindo);
             }
-            printf("[CPU] Trocou para Tarefa %d (Restante: %d)\n", cpu->t->id, cpu->t->tempo_execucao);
+            printf("[CPU %d] Trocou para Tarefa %d (Restante: %d)\n",cpu->id, cpu->t->id, cpu->t->tempo_execucao);
         }
     }
 }
@@ -141,7 +143,7 @@ void execucao(Fila_CPU *f) {
         CPU* cpu = aux->dado;
         if (cpu->t != NULL) {
             cpu->t->tempo_execucao--;
-            printf("Executando ID %d | Restante: %d\n", cpu->t->id, cpu->t->tempo_execucao);
+            printf("Executando ID %d em CPU %d | Restante: %d\n", cpu->t->id,cpu->id, cpu->t->tempo_execucao);
 
             if (cpu->t->tempo_execucao <= 0) {
                 printf("Tarefa %d FINALIZADA.\n", cpu->t->id);
@@ -149,11 +151,55 @@ void execucao(Fila_CPU *f) {
                 cpu->ocupado = LIVRE;
             }
         }
+        else
+            cpu->tempo_desligado++;
     }
     printf("--------------------------\n");
 }
+void ingresso_tarefa(int relogio, Fila_Tarefas *f) {
+    FILE* arquivo;
+    //Abre arquivo
+    arquivo = fopen("C:\\Users\\mateu\\CLionProjects\\Projeto1-SO\\tarefas.txt", "r");
+    int id, tempo_execucao, tempo_ingresso, prioridade;
+    char cor[5];
+    if (arquivo == NULL)
+        printf("Erro ao abrir o arquivo");
+    else {
+        //elimina a primera linha
+        char descarta[256];
+        fgets(descarta, sizeof(descarta), arquivo);
+
+        //Percorre cada linha pegando seus valores
+        while (fscanf(arquivo, "%d;%[^;];%d;%d;%d", &id, cor, &tempo_ingresso, &tempo_execucao, &prioridade )!=EOF) {
+            if (tempo_ingresso == relogio) {
+                /*  -Adiciona a tarefa na fila-  */
+                Tarefa* nova_t = (Tarefa*) malloc(sizeof(Tarefa));
+                nova_t->id = id;
+                nova_t->tempo_ingresso = tempo_ingresso;
+                nova_t->tempo_execucao = tempo_execucao;
+                nova_t->prioridade = prioridade;
+
+                inserir(f, nova_t);
+            }
+        }
+    }
+}
+
+void escalonamento_config(Fila_CPU* c) {
+    FILE* arquivo;
+    arquivo = fopen("C:\\Users\\mateu\\CLionProjects\\Projeto1-SO\\tarefas.txt", "r");
+    int num_cpus;
+    if (arquivo == NULL)
+        printf("Erro ao abrir o arquivo");
+    else {
+        fscanf(arquivo, "%[^;];%d;%d", escal, &quantum, &num_cpus);
+        inicializar_fila_CPU(c, num_cpus);
+    }
+
+}
 
 void inserir(Fila_Tarefas *f, Tarefa* t) {
+        /*  -Cria tarefa-   */
     No_Tarefa *novo = malloc(sizeof(No_Tarefa));
     novo->dado = t;
     novo->prox = NULL;
@@ -170,10 +216,13 @@ void inicializar_fila(Fila_Tarefas *f) {
 void inicializar_fila_CPU(Fila_CPU* f, int size) {
     f->inicio = f->fim = NULL;
     for (int i = 0; i < size; i++) {
+            /*  -Cria CPU's-   */
         No_CPU* novo = malloc(sizeof(No_CPU));
         novo->dado = malloc(sizeof(CPU));
+        novo->dado->id = i+1;
         novo->dado->t = NULL;
         novo->dado->ocupado = LIVRE;
+        novo->dado->tempo_desligado = 0;
         novo->prox = NULL;
         if (f->inicio == NULL) f->inicio = novo;
         else f->fim->prox = novo;
