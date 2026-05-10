@@ -1,6 +1,6 @@
 #ifndef TAREFA_H
 #define TAREFA_H
-
+#include <utility>
 #include <string>
 using namespace std;
 

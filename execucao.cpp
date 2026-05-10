@@ -1,10 +1,4 @@
 #include "execucao.h"
-#include <fstream>
-#include <sstream>
-#include <iostream>
-#include <algorithm>
-
-using namespace std;
 
 execucao::execucao(string type, vector<CPU*> cpu_list, int quantum) {
     this->type = std::move(type); //SRTF OU PRIOP

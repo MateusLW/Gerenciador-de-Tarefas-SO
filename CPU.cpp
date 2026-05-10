@@ -1,6 +1,4 @@
 #include "CPU.h"
-#include "Tarefa.h"
-#include <cstddef>
 
 CPU::CPU(int id) {
     this->id = id;

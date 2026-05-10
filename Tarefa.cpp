@@ -1,8 +1,8 @@
 #include "Tarefa.h"
 
-Tarefa::Tarefa(int id, std::string cor, int ingresso, int t_execucao, int prioridade) {
+Tarefa::Tarefa(int id, string cor, int ingresso, int t_execucao, int prioridade) {
     this->id = id;
-    this->color = cor;
+    this->color = std::move(cor);
     this->tempo_ingresso = ingresso;
     this->tempo_total = t_execucao;
     this->tempo_restante = t_execucao; // No início, o restante é o total

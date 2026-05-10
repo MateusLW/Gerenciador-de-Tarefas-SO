@@ -1,6 +1,10 @@
 #ifndef EXECUCAO_H
 #define EXECUCAO_H
 
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <algorithm>
 #include <string>
 #include <vector>
 #include "Tarefa.h" // Ajuste o caminho conforme sua pasta

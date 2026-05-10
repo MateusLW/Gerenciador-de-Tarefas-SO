@@ -1,5 +1,7 @@
 #ifndef CPU_H
 #define CPU_H
+#include "Tarefa.h"
+#include <cstddef>
 using namespace std;
 
 // Avisamos ao compilador que 'Tarefa' existe, sem precisar ler o arquivo dela agora
