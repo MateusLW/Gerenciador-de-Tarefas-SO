@@ -24,6 +24,7 @@ private:
 
     void entra_tarefa();
     void SRTF();
+    void PRIOP();
     void quantum_tempo();
 
 public:
