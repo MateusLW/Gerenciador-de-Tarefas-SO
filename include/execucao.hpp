@@ -4,6 +4,8 @@
 #include <memory>
 #include "cpu.hpp"
 #include "escalonador.hpp"
+#include <map>
+#include <queue>
 
 namespace ProjetoSO 
 {
@@ -18,6 +20,12 @@ namespace ProjetoSO
 			std::vector<Tarefa*> finalizadas;
 			unsigned int quantum;
 			int relogio;
+			std::map<int, Tarefa*> mutex_owner;                      // id_mutex -> Tarefa* que o possui
+			std::map<int, std::queue<Tarefa*>> mutex_wait_queue;     // Fila de espera do mutex
+			std::vector<Tarefa*> lista_io;                           // Tarefas atualmente em E/S
+			std::map<int, Tarefa*> mutex_donos;              // id_mutex -> Tarefa que possui o lock
+			std::map<int, std::queue<Tarefa*>> mutex_filas;  // id_mutex -> fila de tarefas bloqueadas esperando o recurso
+			std::vector<Tarefa*> tarefas_em_io;
 
 			void entra_tarefa();
 			void quantum_tempo();
@@ -37,6 +45,8 @@ namespace ProjetoSO
 			bool update();
 			void unidade_tempo();
 			void automatico();
+			void processarAcoes(CPU* cpu, Tarefa* t);
+			void atualizarIO();
 
 			std::vector<CPU*> getCpuList() const {return cpu_list;}
 			std::vector<Tarefa*> getTarefas() const {return tarefas;}

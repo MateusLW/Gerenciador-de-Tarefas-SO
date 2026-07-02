@@ -10,6 +10,8 @@ Tarefa::Tarefa(int id, Color cor, int ingresso, int t_execucao, int prioridade)
     this->tempo_total = t_execucao;
     this->tempo_restante = t_execucao; // No início, o restante é o total
     this->prioridade = prioridade;
+    this->tempo_executado = 0;
+    this->tempo_io_restante = 0;
 }
 
 void Tarefa::executarUnidade()

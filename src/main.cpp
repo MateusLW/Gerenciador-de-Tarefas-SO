@@ -45,14 +45,19 @@ vector<Tarefa*> pega_tarefas() {
 	//Pula a primeira linha
 	getline(arquivo, linha);
 	cout << ">> Primeira linha pulada" << endl;
+	
 	//Percorre todas as linhas
 	while (getline(arquivo, linha)) {
+		if (linha.empty()) continue; // Ignora linhas em branco
+
 		stringstream ss(linha);
 		cout << ">> Processando linha: " << linha << endl;
+		
 		//Armazena itens separados por delimitador
 		string temp;
 		string hexColor;
 		int id, t_ingresso, t_execucao, prioridade;
+		
 		getline(ss, temp, ';'); id = stoi(temp);
 		getline(ss, hexColor, ';');
 		getline(ss, temp, ';'); t_ingresso = stoi(temp);
@@ -75,6 +80,38 @@ vector<Tarefa*> pega_tarefas() {
 
 		Tarefa* nova_t = new Tarefa(id, cor, t_ingresso, t_execucao, prioridade);
 		cout << ">> Tarefa criada: ID=" << nova_t->getId() << endl;
+
+		// --- INÍCIO DA LÓGICA DE AÇÕES (E/S e Mutex) ---
+		// Lê as eventuais ações após os atributos básicos da tarefa
+		while (getline(ss, temp, ';')) {
+			// Limpa espaços ou quebras de linha acidentais
+			if (temp.empty() || temp == "\r" || temp == "\n") continue;
+
+			stringstream ss_acao(temp);
+			string tipo;
+			ss_acao >> tipo; // Lê o tipo "ML", "MU" ou "IO"
+
+			if (tipo.empty()) continue;
+
+			Tarefa::Acao acao;
+			acao.tipo = tipo;
+			acao.concluida = false;
+
+			if (tipo == "ML" || tipo == "MU") {
+				ss_acao >> acao.id_mutex >> acao.instante;
+				acao.duracao = 0;
+				nova_t->addAcao(acao);
+				cout << ">> Acao identificada: " << tipo << " | Mutex: " << acao.id_mutex << " | Instante relativo: " << acao.instante << endl;
+			}
+			else if (tipo == "IO") {
+				ss_acao >> acao.instante >> acao.duracao;
+				acao.id_mutex = -1;
+				nova_t->addAcao(acao);
+				cout << ">> Acao identificada: " << tipo << " | Instante relativo: " << acao.instante << " | Duracao: " << acao.duracao << endl;
+			}
+		}
+		// --- FIM DA LÓGICA DE AÇÕES ---
+
 		tarefas.push_back(nova_t);
 	}
 	

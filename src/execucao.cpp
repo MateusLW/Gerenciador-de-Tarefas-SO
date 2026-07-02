@@ -130,23 +130,92 @@ bool Execucao::update()
 
 void Execucao::unidade_tempo() 
 {
-	for (CPU* cpu : cpu_list) {
-		Tarefa* t = cpu->getTarefa();
+    // 1. Desconta o tempo de I/O de todas as tarefas suspensas globalmente
+    atualizarIO();
 
-		if (t != nullptr) {
-			t->executarUnidade();
+    for (CPU* cpu : cpu_list) {
+        Tarefa* t = cpu->getTarefa();
 
-			if (t->isConcluida())
-			{
-				cpu->liberarCPU();
-				t->registrarEvento(Tarefa::TaskState::Finished, relogio);
-				finalizadas.push_back(t);
-			}
-		}
-		else {
-			cpu->unidadeDesligado();
-		}
-	}
+        if (t != nullptr) {
+            // 2. Processa as interrupções/ações ANTES do avanço temporal da CPU
+            processarAcoes(cpu, t);
+
+            // Verifica se a tarefa continua na CPU após o processamento das ações
+            t = cpu->getTarefa();
+            if (t != nullptr) {
+                t->executarUnidade();
+                t->incrementaTempoExecutado(); // Incrementa o contador interno relativo
+
+                if (t->isConcluida()) {
+                    cpu->liberarCPU();
+                    t->registrarEvento(Tarefa::TaskState::Finished, relogio);
+                    finalizadas.push_back(t);
+                }
+            }
+        }
+        else {
+            cpu->unidadeDesligado();
+        }
+    }
+}
+void Execucao::processarAcoes(CPU* cpu, Tarefa* t)
+{
+    for (auto& acao : t->getAcoes()) {
+        // Se o instante relativo de execução da tarefa bate com a ação programada
+        if (!acao.concluida && acao.instante == t->getTempoExecutado()) {
+            acao.concluida = true;
+
+            if (acao.tipo == "ML") { // Mutex Lock
+                if (mutex_donos[acao.id_mutex] == nullptr) {
+                    mutex_donos[acao.id_mutex] = t; // Adquire o Mutex livre
+                } else {
+                    // Mutex ocupado: desaloca da CPU imediatamente e joga na fila de bloqueados
+                    cpu->liberarCPU();
+                    t->registrarEvento(Tarefa::TaskState::BlockedMutex, relogio);
+                    mutex_filas[acao.id_mutex].push(t);
+                    break; 
+                }
+            }
+            else if (acao.tipo == "MU") { // Mutex Unlock
+                if (mutex_donos[acao.id_mutex] == t) {
+                    mutex_donos[acao.id_mutex] = nullptr;
+                    // Se houver tarefas esperando por este Mutex, acorda a primeira
+                    if (!mutex_filas[acao.id_mutex].empty()) {
+                        Tarefa* proxima = mutex_filas[acao.id_mutex].front();
+                        mutex_filas[acao.id_mutex].pop();
+                        mutex_donos[acao.id_mutex] = proxima;
+                        
+                        proxima->registrarEvento(Tarefa::TaskState::Ready, relogio);
+                        tarefas.push_back(proxima); // Retorna à fila de prontos do SO
+                    }
+                }
+            }
+            else if (acao.tipo == "IO") { // Operação de E/S
+                cpu->liberarCPU();
+                t->registrarEvento(Tarefa::TaskState::BlockedIO, relogio);
+                t->setTempoIORestante(acao.duracao);
+                tarefas_em_io.push_back(t);
+                break; 
+            }
+        }
+    }
+}
+
+void Execucao::atualizarIO()
+{
+    for (auto it = tarefas_em_io.begin(); it != tarefas_em_io.end(); ) {
+        Tarefa* t = *it;
+        t->decrementarTempoIORestante();
+
+        if (t->getTempoIORestante() <= 0) {
+            // Conforme requisito 3.4: Ao terminar, gera IRQ e volta a ser Ready
+            t->registrarEvento(Tarefa::TaskState::Ready, relogio);
+            tarefas.push_back(t);
+            it = tarefas_em_io.erase(it); // Remove da fila de E/S ativo
+        } else {
+            ++it;
+        }
+    }
 }
 
 void Execucao::quantum_tempo()

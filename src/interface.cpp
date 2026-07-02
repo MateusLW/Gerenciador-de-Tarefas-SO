@@ -115,6 +115,7 @@ bool Interface::drawSimulation()
 
 	if (currentState == InterfaceState::Paused)
 		DrawText("Simulação pausada. Clique na ação que deseja realizar.", 10, 10, 20, DARKGRAY);
+	
 	else
 		DrawText("Simulação em andamento, clique em próximo para avançar o relógio ou selecione uma tarefa.", 10, 10, 20, DARKGRAY);
 	drawBoard();
@@ -183,49 +184,76 @@ bool Interface::drawSimulation()
 // desenha as tarefas no gráfico de gantt, considerando o tempo atual do relógio
 void Interface::drawGantt()
 {
-	std::vector<Tarefa*> tarefas = Execucao::getInstance()->getTarefas();
-	for (const CPU* cpu : Execucao::getInstance()->getCpuList())
-	{
-		Tarefa* t = cpu->getTarefa();
-		if (t != nullptr)
-			tarefas.push_back(t);
-	}
+    std::vector<Tarefa*> tarefas = Execucao::getInstance()->getTarefas();
+    for (const CPU* cpu : Execucao::getInstance()->getCpuList())
+    {
+        Tarefa* t = cpu->getTarefa();
+        if (t != nullptr)
+            tarefas.push_back(t);
+    }
 
-	for (Tarefa* t : Execucao::getInstance()->getFinalizadas())
-		tarefas.push_back(t);
+    for (Tarefa* t : Execucao::getInstance()->getFinalizadas())
+        tarefas.push_back(t);
 
-	for (const Tarefa* t : tarefas)
-	{
-		std::vector<Tarefa::Event> events = t->getEvents();
-		for (size_t i = 0; i < events.size(); i++)
-		{
-			Tarefa::Event ev = events[i];
-			if (ev.state == Tarefa::TaskState::Finished) break;
-			if ((events.size() > i + 2 && events[i + 1].begin < currentStep))
-			{
-				ev.end = events[i + 1].begin;
-				if (ev.begin == ev.end)
-				{
-					events.erase(events.begin() + i);
-					i--;
-					continue;
-				}
-			}
-			unsigned int x = 20 + 30 * ev.begin - scrollX;
-			unsigned int y = (screenHeight - 100) - 30 * (t->getId() - 1) + scrollY;
-			unsigned int width = ev.begin == ev.end ? currentStep - ev.begin : ev.end - ev.begin;
-			if (x + width * 30 < 20 || x > screenWidth - 10 || y + 30 < 90 || y > screenHeight - 70)
-				continue;
-			Color color = WHITE;
-			if (ev.state == Tarefa::TaskState::Executing) color = t->getColor();
-			if (drawTask(t->getPrioridade(), x, y, width, color))
-			{
-				selectedTask = const_cast<Tarefa*>(t);
-				currentState = InterfaceState::Paused;
-				return;
-			}
-		}
-	}
+    for (const Tarefa* t : tarefas)
+    {
+        std::vector<Tarefa::Event> events = t->getEvents();
+        for (size_t i = 0; i < events.size(); i++)
+        {
+            Tarefa::Event ev = events[i];
+            if (ev.state == Tarefa::TaskState::Finished) break;
+            if ((events.size() > i + 2 && events[i + 1].begin < currentStep))
+            {
+                ev.end = events[i + 1].begin;
+                if (ev.begin == ev.end)
+                {
+                    events.erase(events.begin() + i);
+                    i--;
+                    continue;
+                }
+            }
+            unsigned int x = 20 + 30 * ev.begin - scrollX;
+            unsigned int y = (screenHeight - 70) - scrollY - 30 * (t->getId());
+            unsigned int width = ev.begin == ev.end ? currentStep - ev.begin : ev.end - ev.begin;
+            
+            if (x + width * 30 < 20 || x > screenWidth - 10 || y + 30 < 90 || y > screenHeight - 70)
+                continue;
+                
+            // 1. Define a cor base do fundo dependendo do estado
+            Color color;
+            if (ev.state == Tarefa::TaskState::Executing) color = t->getColor();
+            else if (ev.state == Tarefa::TaskState::BlockedIO) color = PURPLE;    // Fundo para E/S
+            else if (ev.state == Tarefa::TaskState::BlockedMutex) color = ORANGE; // Fundo para Mutex
+            else if (ev.state == Tarefa::TaskState::Ready) color = WHITE;          // Fundo para Pronto (opcional, para visualização)
+
+            // 2. Chama a sua função de desenho e guarda se foi clicado
+            bool clicked = drawTask(t->getPrioridade(), x, y, width, color);
+
+            // 3. Desenha o padrão (linhas) por cima do bloco para os estados suspensos
+            if (ev.state == Tarefa::TaskState::BlockedIO)
+            {
+                // Padrão diagonal
+                for (unsigned int j = 0; j < width * 30; j += 6) {
+                    DrawLine(x + j, y, x + std::min(j + 6, width * 30), y + 30, MAGENTA);
+                }
+            }
+            else if (ev.state == Tarefa::TaskState::BlockedMutex)
+            {
+                // Padrão vertical
+                for (unsigned int j = 0; j < width * 30; j += 6) {
+                    DrawLine(x + j, y, x + j, y + 30, RED);
+                }
+            }
+
+            // 4. Executa a lógica de clique original
+            if (clicked)
+            {
+                selectedTask = const_cast<Tarefa*>(t);
+                currentState = InterfaceState::Paused;
+                return;
+            }
+        }
+    }
 }
 
 // desenha um campo de texto, onde o usuário pode clicar para selecionar e digitar um valor, o id é usado para identificar qual campo está selecionado
@@ -417,12 +445,14 @@ void Interface::inputHandler()
 			else
 				scrollY = std::max(scrollY - (int)(mouseWheel * scrollSpeed),  (unsigned) 0);
 		}
-
-		unsigned int maxScrollX = Execucao::getInstance()->getRelogio() * 30 - (screenWidth - 30);
-		unsigned int maxScrollY = Execucao::getInstance()->getTarefas().size() * 30 
-								+ Execucao::getInstance()->getFinalizadas().size() * 30 - (screenHeight - 160);
-		scrollX = std::min(std::max(scrollX, (unsigned) 0), maxScrollX);
-		scrollY = std::min(std::max(scrollY, (unsigned) 0), maxScrollY);
+		
+		int maxScrollX = Execucao::getInstance()->getRelogio() * 30 - screenWidth;
+        int maxScrollY = (Execucao::getInstance()->getTarefas().size() 
+                                + Execucao::getInstance()->getFinalizadas().size()) * 30 - screenHeight;
+        std::cout << "MaxScrollX: " << maxScrollX << ", MaxScrollY: " << maxScrollY << std::endl;
+        scrollX = std::min(scrollX, (unsigned) std::max(maxScrollX, 0));
+        scrollY = std::min(scrollY, (unsigned) std::max(maxScrollY, 0));
+        std::cout << "ScrollX: " << scrollX << ", ScrollY: " << scrollY << std::endl;
 	}
 }
 
