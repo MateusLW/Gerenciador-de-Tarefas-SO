@@ -19,13 +19,13 @@ std::unique_ptr<Escalonador> Execucao::criarEscalonador(const std::string& type,
 	if (type == "SJF")       return std::make_unique<SJFEscalonador>();
 	if (type == "SRTF")      return std::make_unique<SRTFEscalonador>();
 	if (type == "PRIOP")     return std::make_unique<PRIOPEscalonador>();
-	if (type == "PRIOPENV") return std::make_unique<PRIOPEnvelhecimentoEscalonador>(quantum);
+	if (type == "PRIOPENV") return std::make_unique<PRIOPEnvelhecimentoEscalonador>(this->alpha);
 	if (type == "PRIOD")     return std::make_unique<PRIOdEscalonador>();
 	if (type == "RR")        return std::make_unique<RoundRobinEscalonador>();
 	return nullptr;
 }
 
-void Execucao::init(std::string type, std::vector<Tarefa*> todas_tarefas, unsigned int quantum, unsigned int cpuCount)
+void Execucao::init(std::string type, std::vector<Tarefa*> todas_tarefas, unsigned int quantum, unsigned int cpuCount, unsigned int alpha)
 {
 	if (cpu_list.size() > 0)
 		for (CPU* cpu : cpu_list)
@@ -36,6 +36,7 @@ void Execucao::init(std::string type, std::vector<Tarefa*> todas_tarefas, unsign
 	this->escalonador = criarEscalonador(type, quantum);
 	this->todas_tarefas = todas_tarefas;
 	this->quantum = quantum;
+	this->alpha = alpha;
 	tarefas.clear();
 	finalizadas.clear();
 	for (unsigned int i = 0; i < cpuCount; i++)

@@ -42,6 +42,8 @@ namespace ProjetoSO
 		char inputCPUcount[9] = "";
 		char currentTarget = 0; // 0: nenhum, 1: start, 2: duration, 3: priority, 4: quantum, 5: cpu count
 
+		int alpha;
+
 		SimulationType simulationType = SimulationType::SRTF;
 		bool showingDropbox = false;
 		const int opcount = 7;
@@ -83,5 +85,6 @@ namespace ProjetoSO
 		void setQuantum(unsigned int q) { snprintf(inputQuantum, sizeof(inputQuantum), "%d", q); }
 		void setCPUCount(unsigned int c) { snprintf(inputCPUcount, sizeof(inputCPUcount), "%d", c); }
 		void setSimulationType(std::string type);
+		void setAlpha(int alpha){this->alpha = alpha;}
 	};
 }

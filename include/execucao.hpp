@@ -19,6 +19,7 @@ namespace ProjetoSO
 			std::vector<Tarefa*> todas_tarefas;
 			std::vector<Tarefa*> finalizadas;
 			unsigned int quantum;
+			unsigned int alpha;
 			int relogio;
 			std::map<int, Tarefa*> mutex_owner;                      // id_mutex -> Tarefa* que o possui
 			std::map<int, std::queue<Tarefa*>> mutex_wait_queue;     // Fila de espera do mutex
@@ -38,7 +39,7 @@ namespace ProjetoSO
 			void operator=(const Execucao&) = delete;
 
 			static Execucao* getInstance();
-			void init(std::string type, std::vector<Tarefa*> todas_tarefas, unsigned int quantum, unsigned int cpuCount);
+			void init(std::string type, std::vector<Tarefa*> todas_tarefas, unsigned int quantum, unsigned int cpuCount, unsigned alpha);
 			void finalizar_tarefa(Tarefa* t);
 			void mandar_fila_prontos(Tarefa* t);
 			void mandar_cpu(Tarefa* t);

@@ -484,7 +484,7 @@ void Interface::initSimulation()
 	std::sort(tasks.begin(), tasks.end(), [](Tarefa *a, Tarefa *b)
 			  { return a->getTempoIngresso() < b->getTempoIngresso(); });
 	std::cout << ">> Iniciando simulação com " << tasks.size() << " tarefas." << std::endl;
-	Execucao::getInstance()->init(getSimTypeText(simulationType), tasks, atoi(inputQuantum), atoi(inputCPUcount));
+	Execucao::getInstance()->init(getSimTypeText(simulationType), tasks, atoi(inputQuantum), atoi(inputCPUcount), alpha);
 	currentState = InterfaceState::Simulation;
 	while (!Execucao::getInstance()->update()) {}
 }
