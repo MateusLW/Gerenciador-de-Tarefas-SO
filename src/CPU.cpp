@@ -1,4 +1,5 @@
 #include "../include/cpu.hpp"
+#include "../include/execucao.hpp"
 
 using namespace ProjetoSO;
 
@@ -25,12 +26,14 @@ void CPU::setTarefa(Tarefa *nova_tarefa)
 {
     this->t = nova_tarefa;
     this->ocupado = (nova_tarefa != nullptr);
+    events.push_back({id, Execucao::getInstance()->getRelogio(), nova_tarefa});
 }
 
 void CPU::liberarCPU()
 {
     this->t = nullptr;
     this->ocupado = false;
+    events.push_back({id, Execucao::getInstance()->getRelogio(), nullptr});
 }
 
 void CPU::unidadeDesligado()

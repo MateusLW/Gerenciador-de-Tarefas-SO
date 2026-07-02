@@ -120,6 +120,22 @@ bool Interface::drawSimulation()
 	drawBoard();
 	drawGantt();
 
+	for (CPU* cpu : Execucao::getInstance()->getCpuList())
+	{
+		for (CPU::Event event : cpu->getEvents())
+		{
+			if (event.clock > currentStep)
+				continue;
+			unsigned int x = 30 * event.clock - scrollX + (event.t ? -10 : 10);
+			unsigned int y = (screenHeight - 100) - 30 * (event.t ? event.t->getId() - 1 : cpu->getEvents()[event.id - 1].t->getId() - 1) + scrollY;
+			if (x + 30 < 20 || x > screenWidth - 10 || y + 30 < 90 || y > screenHeight - 70)
+				continue;
+			DrawCircle(x + 15, y + 15, 10, event.t ? GREEN : RED);
+			DrawCircleLines(x + 15, y + 15, 10, BLACK);
+			DrawText(TextFormat("%d", cpu->getId()), x, y, 10, DARKGRAY);
+		}
+	}
+
 	int bottom = screenHeight - 40;
 	if (drawButton(10, bottom, "Cancel", RED))
 		currentState = InterfaceState::Waiting;
@@ -127,6 +143,14 @@ bool Interface::drawSimulation()
 	{
 		currentState = InterfaceState::Simulation;
 		EndDrawing();
+		currentStep++;
+		return true;
+	}
+	if (drawButton(190, bottom, "Voltar", YELLOW))
+	{
+		currentState = InterfaceState::Simulation;
+		EndDrawing();
+		currentStep--;
 		return true;
 	}
 
@@ -136,17 +160,17 @@ bool Interface::drawSimulation()
 			currentState = InterfaceState::Simulation;
 		else
 		{
-			if (drawButton(190, bottom, "Remover", RED, 120)) 
+			if (drawButton(280, bottom, "Remover", RED, 120))  
 			{
 				Execucao::getInstance()->finalizar_tarefa(selectedTask);
 				selectedTask = nullptr;
 			}
-			if (drawButton(320, bottom, "Pronto", YELLOW)) 
+			if (drawButton(410, bottom, "Pronto", YELLOW))  
 			{
 				Execucao::getInstance()->mandar_fila_prontos(selectedTask);
 				selectedTask = nullptr;
 			}
-			if (drawButton(410, bottom, "CPU", GREEN)) 
+			if (drawButton(500, bottom, "CPU", GREEN)) 
 			{
 				Execucao::getInstance()->mandar_cpu(selectedTask);
 				selectedTask = nullptr;
@@ -159,7 +183,6 @@ bool Interface::drawSimulation()
 // desenha as tarefas no gráfico de gantt, considerando o tempo atual do relógio
 void Interface::drawGantt()
 {
-	unsigned int clock = Execucao::getInstance()->getRelogio();
 	std::vector<Tarefa*> tarefas = Execucao::getInstance()->getTarefas();
 	for (const CPU* cpu : Execucao::getInstance()->getCpuList())
 	{
@@ -178,7 +201,7 @@ void Interface::drawGantt()
 		{
 			Tarefa::Event ev = events[i];
 			if (ev.state == Tarefa::TaskState::Finished) break;
-			if (events.size() > i + 2 && events[i + 1].begin < clock)
+			if ((events.size() > i + 2 && events[i + 1].begin < currentStep))
 			{
 				ev.end = events[i + 1].begin;
 				if (ev.begin == ev.end)
@@ -188,10 +211,11 @@ void Interface::drawGantt()
 					continue;
 				}
 			}
-			unsigned int x = 20 + 30 * ev.begin;
-			unsigned int y = (screenHeight - 100) - 30 * (t->getId() - 1);
-			unsigned int width = ev.begin == ev.end ? clock - ev.begin : ev.end - ev.begin;
-			std::cout << "clock: " << clock << ", tarefa: " << t->getId() << ", estado: " << static_cast<int>(ev.state) << ", início: " << ev.begin << ", fim: " << ev.end << std::endl;
+			unsigned int x = 20 + 30 * ev.begin - scrollX;
+			unsigned int y = (screenHeight - 100) - 30 * (t->getId() - 1) + scrollY;
+			unsigned int width = ev.begin == ev.end ? currentStep - ev.begin : ev.end - ev.begin;
+			if (x + width * 30 < 20 || x > screenWidth - 10 || y + 30 < 90 || y > screenHeight - 70)
+				continue;
 			Color color = WHITE;
 			if (ev.state == Tarefa::TaskState::Executing) color = t->getColor();
 			if (drawTask(t->getPrioridade(), x, y, width, color))
@@ -331,11 +355,16 @@ void Interface::drawBoard()
 	DrawLine(20, screenHeight - 70, screenWidth - 10, screenHeight - 70, GRAY);
 	DrawText("0", 20, screenHeight - 65, 10, BLACK);
 	unsigned int count = 1;
-	for (int i = 50; i < screenWidth; i += 30)
+	for (int i = 50; i < screenWidth + scrollX; i += 30)
 	{
-		for (int j = 90; j < screenHeight - 70; j += 15)
-			DrawLine(i, j, i, j + 5, GRAY);
-		DrawText(TextFormat("%d", count++), i, screenHeight - 65, 10, BLACK);
+		unsigned int posX = i - scrollX;
+		if (posX > 20 && posX < screenWidth - 10)
+		{
+			for (int j = 90; j < screenHeight - 70; j += 15)
+				DrawLine(posX, j, posX, j + 5, GRAY);
+			DrawText(TextFormat("%d", count++), posX, screenHeight - 65, 10, BLACK);
+		}
+		count++;
 	}
 }
 
@@ -373,6 +402,28 @@ void Interface::inputHandler()
 			key = GetKeyPressed();
 		}
 	}
+	else
+	{
+		if (IsKeyPressed(KEY_RIGHT)) scrollX += scrollSpeed;
+		if (IsKeyPressed(KEY_LEFT)) scrollX = std::max(scrollX - scrollSpeed, (unsigned) 0);
+		if (IsKeyPressed(KEY_DOWN)) scrollY += scrollSpeed;
+		if (IsKeyPressed(KEY_UP)) scrollY = std::max(scrollY - scrollSpeed, (unsigned) 0);
+
+		float mouseWheel = GetMouseWheelMove();
+		if (mouseWheel != 0)
+		{
+			if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))
+				scrollX = std::max(scrollX - (int)(mouseWheel * scrollSpeed), (unsigned) 0);
+			else
+				scrollY = std::max(scrollY - (int)(mouseWheel * scrollSpeed),  (unsigned) 0);
+		}
+
+		unsigned int maxScrollX = Execucao::getInstance()->getRelogio() * 30 - (screenWidth - 30);
+		unsigned int maxScrollY = Execucao::getInstance()->getTarefas().size() * 30 
+								+ Execucao::getInstance()->getFinalizadas().size() * 30 - (screenHeight - 160);
+		scrollX = std::min(std::max(scrollX, (unsigned) 0), maxScrollX);
+		scrollY = std::min(std::max(scrollY, (unsigned) 0), maxScrollY);
+	}
 }
 
 // adiciona uma nova tarefa a lista de tarefas, utilizado para mostrar na tela e para execução
@@ -398,13 +449,14 @@ void Interface::addTask()
 // inicia a simulação, passando parâmetros para a execução
 void Interface::initSimulation()
 {
+	currentStep = 0;
 	ClearBackground(RAYWHITE);
 	std::sort(tasks.begin(), tasks.end(), [](Tarefa *a, Tarefa *b)
 			  { return a->getTempoIngresso() < b->getTempoIngresso(); });
 	std::cout << ">> Iniciando simulação com " << tasks.size() << " tarefas." << std::endl;
 	Execucao::getInstance()->init(getSimTypeText(simulationType), tasks, atoi(inputQuantum), atoi(inputCPUcount));
 	currentState = InterfaceState::Simulation;
-	Execucao::getInstance()->update();
+	while (!Execucao::getInstance()->update()) {}
 }
 
 // retorna em forma de texto o tipo de escalonamento
@@ -456,4 +508,73 @@ void Interface::setSimulationType(std::string type)
 void Interface::simulationFinished()
 {
 	currentState = InterfaceState::Results;
+}
+
+void Interface::exportResults()
+{
+	unsigned int maxClock = Execucao::getInstance()->getRelogio();
+	std::vector<Tarefa*> allTasks = Execucao::getInstance()->getTarefas();
+	for (Tarefa* t : Execucao::getInstance()->getFinalizadas()) allTasks.push_back(t);
+	int totalHeight = std::max((unsigned)(100 + allTasks.size() * 30), screenHeight);
+	int totalWidth = std::max((unsigned)(30 * (maxClock + 1) + 30), screenWidth);
+	std::cout << ">>>> x:" << totalWidth << ", y:" << totalHeight << std::endl;
+	RenderTexture2D target = LoadRenderTexture(totalWidth, totalHeight);
+	BeginTextureMode(target);
+	ClearBackground(RAYWHITE);
+
+	DrawLine(20, 50, 20, totalHeight - 70, GRAY);
+	DrawLine(20, totalHeight - 70, totalWidth - 10, totalHeight - 70, GRAY);
+	DrawText("0", 20, totalHeight - 65, 10, BLACK);
+	unsigned int count = 1;
+	for (int i = 50; i < totalWidth; i += 30)
+	{
+		if (i > 20 && i < totalWidth - 10)
+		{
+			for (int j = 90; j < totalHeight - 70; j += 15)
+				DrawLine(i, j, i, j + 5, GRAY);
+			DrawText(TextFormat("%d", count++), i, totalHeight - 65, 10, BLACK);
+		}
+		count++;
+	}
+
+	for (const Tarefa* t : allTasks)
+	{
+		std::vector<Tarefa::Event> events = t->getEvents();
+		for (const auto& event : events)
+		{
+			if (event.begin >= maxClock) continue;
+			unsigned int end = std::min(event.end, maxClock);
+			unsigned int x = 20 + 30 * event.begin;
+			unsigned int y = (totalHeight - 100) - 30 * (t->getId() - 1);
+			unsigned int width = end - event.begin;
+			Color color = (event.state == Tarefa::TaskState::Executing) ? t->getColor() : WHITE;
+			if (event.state == Tarefa::TaskState::Ready) color = GOLD;
+			DrawRectangle(x, y, width * 30, 30, color);
+			DrawRectangleLines(x, y, width * 30, 30, BLACK);
+			DrawText(TextFormat("%d", t->getPrioridade()), x + 5, y + 5, 20, BLACK);
+		}
+		
+		for (CPU* cpu : Execucao::getInstance()->getCpuList())
+		{
+			for (CPU::Event event : cpu->getEvents())
+			{
+				unsigned int x = 30 * event.clock - scrollX + (event.t ? -10 : 10);
+				unsigned int y = (screenHeight - 100) - 30 * (event.t ? event.t->getId() - 1 : cpu->getEvents()[event.id - 1].t->getId() - 1) + scrollY;
+				if (event.t == nullptr) x+= 15;
+				if (x + 30 < 20 || x > screenWidth - 10 || y + 30 < 90 || y > screenHeight - 70)
+					continue;
+				DrawCircle(x + 15, y + 15, 10, event.t ? GREEN : RED);
+				DrawCircleLines(x + 15, y + 15, 10, BLACK);
+				DrawText(TextFormat("%d", cpu->getId()), x, y, 10, DARKGRAY);
+			}
+		}
+		
+		EndTextureMode();
+		Image image = LoadImageFromTexture(target.texture);
+		ImageFlipVertical(&image);
+		const char* filename = "simulation_result.png";
+		ExportImage(image, filename);
+		UnloadImage(image);
+		UnloadRenderTexture(target);
+	}
 }

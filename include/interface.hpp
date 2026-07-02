@@ -51,6 +51,12 @@ namespace ProjetoSO
 
 		Tarefa *selectedTask = nullptr;
 		
+		unsigned int scrollX = 0;
+		unsigned int scrollY = 0;
+		unsigned int scrollSpeed = 30;
+
+		unsigned int currentStep = 0;
+
 		void drawTextfield(unsigned int x, unsigned int y, char *input, unsigned int id);
 		bool drawButton(unsigned int x, unsigned int y, const char *text, Color color, unsigned int width = 80);
 		bool drawDropbox(unsigned int x, unsigned int y);
@@ -63,6 +69,7 @@ namespace ProjetoSO
 		void inputHandler();
 		void addTask();
 		void initSimulation();
+		void exportResults();
 
 	public:
 		Interface(unsigned int width, unsigned int height, const char *title);
