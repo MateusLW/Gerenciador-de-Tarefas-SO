@@ -8,6 +8,7 @@ CPU::CPU(int id)
     this->t = nullptr;
     this->ocupado = false;
     this->tempo_desligado = 0;
+    this->tempo_exec = 0;
 }
 
 int CPU::getId() const { return id; }

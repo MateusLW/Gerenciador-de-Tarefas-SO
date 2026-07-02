@@ -26,7 +26,7 @@ vector<Tarefa*> pega_tarefas() {
 	vector<Tarefa*> tarefas;
 
 	//Abre arquivo
-	ifstream arquivo("./caso-teste-mc-001-priop.txt");
+	ifstream arquivo("./tarefas.txt");
 	if (!arquivo.is_open()) 
 	{
 		Tarefa* t1 = new Tarefa(1, {134, 206, 203, 255}, 0, 6, 5);
@@ -85,7 +85,7 @@ vector<Tarefa*> pega_tarefas() {
 
 void readFile(int &quantum, int &num_cpus, string &type) 
 {
-    ifstream arquivo("./caso-teste-mc-001-priop.txt");
+    ifstream arquivo("./tarefas.txt");
 
     if (!arquivo.is_open()) {
         cerr << "Erro ao abrir o arquivo de configuração!" << endl;

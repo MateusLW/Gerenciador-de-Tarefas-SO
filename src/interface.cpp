@@ -416,6 +416,16 @@ std::string Interface::getSimTypeText(SimulationType type) const
 		return "SRTF";
 	case SimulationType::PRIOP:
 		return "PRIOP";
+	case SimulationType::PRIOPENV:
+		return "PRIOPENV";
+	case SimulationType::FCFS:
+		return "FCFS";
+	case SimulationType::RR:
+		return "RR";
+	case SimulationType::PRIOD:
+		return "PRIOD";
+	case SimulationType::SJF:
+		return "SJF";
 	default:
 		return "Desconecido";
 	}
@@ -431,6 +441,16 @@ void Interface::setSimulationType(std::string type)
 	}
 	else if (type == "PRIOP")
 		simulationType = SimulationType::PRIOP;
+	else if (type == "PRIOPENV")
+		simulationType = SimulationType::PRIOPENV;
+	else if (type == "FCFS")
+		simulationType = SimulationType::FCFS;
+	else if (type == "RR")
+		simulationType = SimulationType::RR;
+	else if (type == "PRIOD")
+		simulationType = SimulationType::PRIOD;
+	else if (type == "SJF")
+		simulationType = SimulationType::SJF;
 }
 
 void Interface::simulationFinished()

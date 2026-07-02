@@ -22,7 +22,12 @@ namespace ProjetoSO
 		enum class SimulationType
 		{
 			SRTF,
-			PRIOP
+			PRIOP,
+			FCFS,
+			SJF,
+			PRIOPENV,
+			PRIOD,
+			RR
 		};
 
 
@@ -39,7 +44,7 @@ namespace ProjetoSO
 
 		SimulationType simulationType = SimulationType::SRTF;
 		bool showingDropbox = false;
-		const int opcount = 2;
+		const int opcount = 7;
 
 		InterfaceState currentState = InterfaceState::Waiting;
 		std::vector<Tarefa *> tasks;
